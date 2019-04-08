@@ -1,17 +1,19 @@
-"""
-Trace monoids
-"""
-
-from __future__ import print_function
-
 # ***************************************************************************************************
 #  Copyright (C) 2019      Pavlo Tokariev (Kharkiv National Universiy) <pavlo.tokariev at google mail service>
 #
 #  Distributed under the terms of the GNU General Public License (GPL)
 #                  http://www.gnu.org/licenses/
 # ***************************************************************************************************
+
+"""
+Trace monoids
+"""
+
+from __future__ import print_function
+
 import copy
-from itertools import chain
+from collections import OrderedDict
+from itertools import chain, repeat
 
 from sage.monoids.free_monoid import FreeMonoid
 from sage.monoids.free_monoid_element import FreeMonoidElement
@@ -20,19 +22,25 @@ from sage.structure.parent import Set_generic
 
 
 class TraceMonoidElement(FreeMonoidElement):
-    def lexicographic(self):
+    def lexic_norm_form(self):
         result = self.parent(1)
         elements = copy.copy(self._element_list)
+        independence = self.parent().independence
         for i in range(len(elements)):
             for j in range(i, -1, -1):
                 if j > 0 and elements[j - 1][0] > elements[i][0] and \
-                        (elements[i][0], elements[j - 1][0]) in self.parent().independence:
+                        (elements[i][0], elements[j - 1][0]) in independence:
                     continue
                 if j == i:
                     break
                 moved, elements = elements[i], elements[:i] + elements[i + 1:]
                 elements.insert(j, moved)
                 break
+        result._element_list = self.collect_sequence(elements)
+        return result
+
+    @staticmethod
+    def collect_sequence(elements):
         collector = -1
         new_elements = []
         for e in elements:
@@ -41,11 +49,50 @@ class TraceMonoidElement(FreeMonoidElement):
             else:
                 new_elements.append(e)
                 collector = len(new_elements) - 1
-        result._element_list = new_elements
-        return result
+        return new_elements
 
-    def foata(self):
-        pass
+    def foata_norm_form(self):
+        if not self._element_list:
+            return FoataNormalForm([], self.parent())
+
+        generators_set = OrderedDict(sorted((e[0], None) for e in self._element_list))
+        stacks = OrderedDict(sorted((g, []) for g in generators_set))
+        independence = self.parent().independence
+
+        for element in reversed(self._element_list):
+            generator, amount = element
+            stacks[generator].extend(repeat(True, amount))
+            for other_gen in generators_set.keys():
+                if other_gen == generator:
+                    continue
+                if (generator, other_gen) not in independence:
+                    stacks[other_gen].extend(repeat(False, amount))
+
+        steps = []
+        while True:
+            empty_stacks = []
+            step = []
+            for generator, g_stack in stacks.items():
+                if g_stack:
+                    if g_stack[-1]:
+                        g_stack.pop()
+                        step.append(generator)
+                    empty_stacks.append(False)
+                else:
+                    empty_stacks.append(True)
+
+            if all(empty_stacks):
+                break
+
+            for g in step:
+                for other_gen in generators_set.keys():
+                    if other_gen != g and (g, other_gen) not in independence:
+                        stacks[other_gen].pop()
+
+            if step:
+                steps.append(tuple(step))
+
+        return FoataNormalForm(steps, self.parent())
 
     def dependency_graph(self):
         pass
@@ -54,7 +101,7 @@ class TraceMonoidElement(FreeMonoidElement):
         pass
 
     def _richcmp_(self, other, op):
-        return super(TraceMonoidElement, self)._richcmp_(other.lexicographic(), op)
+        return super(TraceMonoidElement, self)._richcmp_(other.lexic_norm_form(), op)
 
 
 class TraceMonoid(FreeMonoid):
@@ -88,18 +135,16 @@ class TraceMonoid(FreeMonoid):
         return "<{} | {}>".format(repr(self.gens())[1:-1], self.independence)
 
 
-class FoataNormalForm:
+class FoataNormalForm(TraceMonoidElement):
     def __init__(self, steps, monoid):
-        self._steps = steps
-        self._parent = monoid
-
-    def to_trace(self):
-        return self._parent(chain.from_iterable(self._steps))
+        self._steps = tuple(steps)
+        elements = self.collect_sequence((g, 1) for g in chain.from_iterable(self._steps))
+        super(TraceMonoidElement, self).__init__(monoid, elements)
 
     def _repr_(self):
-        f = self._parent.monoid_generators()
-        return "".join("({})".format("".join(f[number_point] for number_point in step)) for step in self._steps)
+        f = self.parent().monoid_generators()
+        return "".join("({})".format("".join(str(f[elem]) for elem in step)) for step in self._steps)
 
     def _latex_(self):
-        f = self._parent.monoid_generators()
-        return "".join("\\({}\\)".format("".join(f[number_point] for number_point in step)) for step in self._steps)
+        f = self.parent().monoid_generators()
+        return "".join("\\({}\\)".format("".join(str(f[elem]) for elem in step)) for step in self._steps)
