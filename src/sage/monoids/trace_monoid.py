@@ -13,7 +13,7 @@ from __future__ import print_function
 
 import copy
 from collections import OrderedDict
-from itertools import repeat, chain
+from itertools import repeat, chain, product, combinations_with_replacement
 
 from sage.graphs.graph import Graph
 from sage.misc.cachefunc import cached_method
@@ -98,6 +98,7 @@ class TraceMonoidElement(FreeMonoidElement):
         steps = (monoid(list((v, 1) for v in step)) for step in steps)
         return FoataNormalForm(monoid, steps)
 
+    @cached_method
     def dependency_graph(self):
         pass
 
@@ -153,6 +154,22 @@ class TraceMonoid(FreeMonoid):
     def _named_set_without_duplicates(self):
         f = self.monoid_generators()
         return list((f[v1], f[v2]) for v1, v2 in set(map(frozenset, self.independence)))
+
+    @property
+    @cached_method
+    def dependence(self):
+        return Set(
+            pair for pair in product(range(self.ngens()), repeat=2)
+            if pair not in self.independence
+        )
+
+    @cached_method
+    def dependence_graph(self):
+        f = self.monoid_generators()
+        return Graph([
+            (f[v1], f[v2]) for v1, v2 in combinations_with_replacement(range(self.ngens()), 2)
+            if (v1, v2) not in self.independence
+        ], loops=True)
 
     @cached_method
     def independence_graph(self):
