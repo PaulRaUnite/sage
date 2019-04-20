@@ -29,15 +29,14 @@ from sage.structure.parent import Set_generic
 
 
 class TraceMonoidElement(FreeMonoidElement):
-    @cached_method
-    def _dependence_stack(self, ):
+    def _dependence_stack(self):
         independence = self.parent().independence
-        generators_set = OrderedDict(sorted((e[0], None) for e in self._element_list))
+        generators_set = sorted(e[0] for e in self._element_list)
         stacks = OrderedDict(sorted((g, []) for g in generators_set))
         for element in reversed(self._element_list):
             generator, amount = element
             stacks[generator].extend(repeat(True, amount))
-            for other_gen in generators_set.keys():
+            for other_gen in generators_set:
                 if other_gen == generator:
                     continue
                 if (generator, other_gen) not in independence:
@@ -48,6 +47,8 @@ class TraceMonoidElement(FreeMonoidElement):
     def lexic_norm_form(self, alg="sort"):
         if alg == "sort":
             return self._sort_lex_nform()
+        elif alg == "stack":
+            return self._stack_lex_nform()
         else:
             raise ValueError("Unknown lexicographic form algorithm `{}`.".format(alg))
 
@@ -67,6 +68,34 @@ class TraceMonoidElement(FreeMonoidElement):
                 break
 
         return self.parent(elements)
+
+    def _stack_lex_nform(self):
+        monoid = self.parent()
+        if not self._element_list:
+            return self
+        generators_set, stacks = self._dependence_stack()
+        independence = monoid.independence
+
+        elements = []
+        while True:
+            empty_stacks = []
+            for generator, g_stack in stacks.items():
+                if g_stack:
+                    empty_stacks.append(False)
+                    if g_stack[-1]:
+                        g_stack.pop()
+                        elements.append(generator)
+                        for other_gen in generators_set:
+                            if other_gen != generator and (generator, other_gen) not in independence:
+                                stacks[other_gen].pop()
+                        break
+                else:
+                    empty_stacks.append(True)
+
+            if all(empty_stacks):
+                break
+
+        return monoid([(e, 1) for e in elements])
 
     @cached_method
     def foata_norm_form(self):
@@ -94,7 +123,7 @@ class TraceMonoidElement(FreeMonoidElement):
                 break
 
             for g in step:
-                for other_gen in generators_set.keys():
+                for other_gen in generators_set:
                     if other_gen != g and (g, other_gen) not in independence:
                         stacks[other_gen].pop()
 
