@@ -15,6 +15,7 @@ import copy
 from collections import OrderedDict
 from itertools import repeat, chain, product, combinations_with_replacement
 
+from sage.graphs.digraph import DiGraph
 from sage.graphs.graph import Graph
 from sage.misc.cachefunc import cached_method
 from sage.monoids.free_monoid import FreeMonoid
@@ -98,12 +99,50 @@ class TraceMonoidElement(FreeMonoidElement):
         steps = (monoid(list((v, 1) for v in step)) for step in steps)
         return FoataNormalForm(monoid, steps)
 
-    @cached_method
-    def dependency_graph(self):
-        pass
+    def graph_labels(self, elements, labeled=True):
+        f = self.parent().monoid_generators()
+        labels = {}
 
-    def hasse_diagram(self):
-        pass
+        for i, e in enumerate(elements):
+            if labeled:
+                e = f[e]
+            labels[i] = (i, e)
+
+        return labels
+
+    def _plain_elements(self):
+        return list(chain.from_iterable(repeat(e, times) for e, times in self._element_list))
+
+    @cached_method
+    def dependency_graph(self, labeled=True):
+        elements = self._plain_elements()
+        independence = self.parent().independence
+        graph = {}
+
+        for i, e in enumerate(elements):
+            edges = []
+            for v in graph:
+                if (e, elements[v]) not in independence:
+                    edges.append((v, i))
+            graph[i] = []
+            for v1, v2 in edges:
+                graph[v1].append(v2)
+
+        g = DiGraph(graph)
+        g.relabel(self.graph_labels(elements, labeled=labeled))
+        return g
+
+    @cached_method
+    def hasse_diagram(self, labeled=True):
+        d = self.dependency_graph(labeled=labeled)
+        h = d.copy()
+
+        for e1 in d.edges():
+            for e2 in d.edges():
+                if e1[1] == e2[0]:
+                    h.delete_edge((e1[0], e2[1]))
+
+        return h
 
     def _richcmp_(self, other, op):
         return super(TraceMonoidElement, self.lexic_norm_form())._richcmp_(other.lexic_norm_form(), op)
@@ -140,7 +179,7 @@ class TraceMonoid(FreeMonoid):
         if I is None:
             I = Set()
         if names and len(I) > 0:
-            el = I[0][0]
+            el = next(iter(I[0]))[0]
             if isinstance(el, str):
                 f = self.monoid_generators()
                 reversed_family = {str(f[k]): k for k in f.keys()}
