@@ -30,6 +30,21 @@ from sage.structure.parent import Set_generic
 
 class TraceMonoidElement(FreeMonoidElement):
     @cached_method
+    def _dependence_stack(self, ):
+        independence = self.parent().independence
+        generators_set = OrderedDict(sorted((e[0], None) for e in self._element_list))
+        stacks = OrderedDict(sorted((g, []) for g in generators_set))
+        for element in reversed(self._element_list):
+            generator, amount = element
+            stacks[generator].extend(repeat(True, amount))
+            for other_gen in generators_set.keys():
+                if other_gen == generator:
+                    continue
+                if (generator, other_gen) not in independence:
+                    stacks[other_gen].extend(repeat(False, amount))
+        return generators_set, stacks
+
+    @cached_method
     def lexic_norm_form(self, alg="sort"):
         if alg == "sort":
             return self._sort_lex_nform()
@@ -59,18 +74,8 @@ class TraceMonoidElement(FreeMonoidElement):
         if not self._element_list:
             return FoataNormalForm(monoid, [])
 
-        generators_set = OrderedDict(sorted((e[0], None) for e in self._element_list))
-        stacks = OrderedDict(sorted((g, []) for g in generators_set))
+        generators_set, stacks = self._dependence_stack()
         independence = monoid.independence
-
-        for element in reversed(self._element_list):
-            generator, amount = element
-            stacks[generator].extend(repeat(True, amount))
-            for other_gen in generators_set.keys():
-                if other_gen == generator:
-                    continue
-                if (generator, other_gen) not in independence:
-                    stacks[other_gen].extend(repeat(False, amount))
 
         steps = []
         while True:
