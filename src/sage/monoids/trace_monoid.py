@@ -15,9 +15,10 @@ import copy
 from collections import OrderedDict
 from itertools import repeat, chain, product, combinations_with_replacement
 
+from sage.misc.cachefunc import cached_method
+
 from sage.graphs.digraph import DiGraph
 from sage.graphs.graph import Graph
-from sage.misc.cachefunc import cached_method
 from sage.monoids.free_monoid import FreeMonoid
 from sage.monoids.free_monoid_element import FreeMonoidElement
 from sage.rings.integer import Integer
@@ -133,7 +134,7 @@ class TraceMonoidElement(FreeMonoidElement):
         steps = (monoid(list((v, 1) for v in step)) for step in steps)
         return FoataNormalForm(monoid, steps)
 
-    def graph_labels(self, elements, labeled=True):
+    def _graph_labels(self, elements, labeled=True):
         f = self.parent().monoid_generators()
         labels = {}
 
@@ -163,7 +164,7 @@ class TraceMonoidElement(FreeMonoidElement):
                 graph[v1].append(v2)
 
         g = DiGraph(graph)
-        g.relabel(self.graph_labels(elements, labeled=labeled))
+        g.relabel(self._graph_labels(elements, labeled=labeled))
         return g
 
     @cached_method
@@ -261,9 +262,25 @@ class TraceMonoid(FreeMonoid):
         pass
 
     @cached_method
-    def words_of_size(self, size):
-        psr = PowerSeriesRing(ZZ, default_prec=size + 1)
-        return psr(self.dependence_polynomial()).coefficients()[size]
+    def number_of_words(self, length):
+        psr = PowerSeriesRing(ZZ, default_prec=length + 1)
+        return psr(self.dependence_polynomial()).coefficients()[length]
+
+    @cached_method
+    def words(self, length):
+        if length < 0:
+            raise ValueError("Bad length of words. Expected zero or positive number.")
+        if length == 0:
+            return [self(1)]
+        if length == 1:
+            return list(self.gens())
+
+        return [
+            word * self.gen(suffix) for word in self.words(length - 1)
+            for suffix in range(self.ngens())
+            if not ((word._element_list[-1][0], suffix) in self.independence and
+            word._element_list[-1][0] > suffix)
+        ]
 
     def solve_equation(self, left, right):
         pass
