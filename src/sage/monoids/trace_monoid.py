@@ -108,13 +108,12 @@ class TraceMonoidElement(FreeMonoidElement):
         steps = (monoid(list((v, 1) for v in step)) for step in steps)
         return FoataNormalForm(monoid, steps)
 
-    def _graph_labels(self, elements, labeled=True):
+    def _graph_labels(self, elements):
         f = self.parent().monoid_generators()
         labels = {}
 
         for i, e in enumerate(elements):
-            if labeled:
-                e = f[e]
+            e = f[e]
             labels[i] = (i, e)
 
         return labels
@@ -138,11 +137,55 @@ class TraceMonoidElement(FreeMonoidElement):
                 graph[v1].append(v2)
 
         g = DiGraph(graph)
-        g.relabel(self._graph_labels(elements, labeled=labeled))
+        if labeled:
+            g.relabel(self._graph_labels(elements))
         return g
 
     @cached_method
-    def hasse_diagram(self, labeled=True):
+    def hasse_diagram(self, alg="naive", labeled=True):
+        if alg == "naive":
+            return self._naive_hasse_diagram(labeled=labeled)
+        elif alg == "min":
+            return self._min_hasse_diagram(labeled=labeled)
+        else:
+            raise ValueError("")
+
+    def _min_hasse_diagram(self, labeled=True):
+        elements = self._plain_elements()
+        elements.reverse()
+        independence = self.parent().independence
+        min = set()
+        graph = DiGraph({})
+
+        def next_front(front, removed):
+            removed = set(dest for _, dest in graph.outgoing_edges(removed, labels=False))
+            front = set(dest for _, dest in graph.outgoing_edges(front, labels=False))
+            return front - removed
+
+        for i, x in enumerate(elements):
+            front = min.copy()
+            while front:
+                removed = set()
+                for j in list(front):
+                    y = elements[j]
+                    if (x, y) not in independence:
+                        if j in min:
+                            min.remove(j)
+                        removed.add(j)
+                        graph.add_edge(i, j)
+                front = next_front(front, removed)
+
+            min.add(i)
+
+        if labeled:
+            elements.reverse()
+            graph.relabel(self._graph_labels(elements))
+        else:
+            l = len(elements)
+            graph.relabel(l - 1 - i for i in range(l))
+        return graph
+
+    def _naive_hasse_diagram(self, labeled=True):
         d = self.dependency_graph(labeled=labeled)
         h = d.copy()
 
