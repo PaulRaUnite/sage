@@ -11,7 +11,6 @@ Trace monoids
 
 from __future__ import print_function
 
-import copy
 from collections import OrderedDict
 from itertools import repeat, chain, product, combinations_with_replacement
 
@@ -45,32 +44,7 @@ class TraceMonoidElement(FreeMonoidElement):
         return generators_set, stacks
 
     @cached_method
-    def lexic_norm_form(self, alg="sort"):
-        if alg == "sort":
-            return self._sort_lex_nform()
-        elif alg == "stack":
-            return self._stack_lex_nform()
-        else:
-            raise ValueError("Unknown lexicographic form algorithm `{}`.".format(alg))
-
-    def _sort_lex_nform(self):
-        elements = copy.copy(self._element_list)
-        independence = self.parent().independence
-
-        for i in range(len(elements)):
-            for j in range(i, -1, -1):
-                if j > 0 and elements[j - 1][0] > elements[i][0] and \
-                        (elements[i][0], elements[j - 1][0]) in independence:
-                    continue
-                if j == i:
-                    break
-                moved, elements = elements[i], elements[:i] + elements[i + 1:]
-                elements.insert(j, moved)
-                break
-
-        return self.parent(elements)
-
-    def _stack_lex_nform(self):
+    def lexic_norm_form(self):
         monoid = self.parent()
         if not self._element_list:
             return self
@@ -278,8 +252,7 @@ class TraceMonoid(FreeMonoid):
         return [
             word * self.gen(suffix) for word in self.words(length - 1)
             for suffix in range(self.ngens())
-            if not ((word._element_list[-1][0], suffix) in self.independence and
-            word._element_list[-1][0] > suffix)
+            if not ((word._element_list[-1][0], suffix) in self.independence and word._element_list[-1][0] > suffix)
         ]
 
     def solve_equation(self, left, right):
