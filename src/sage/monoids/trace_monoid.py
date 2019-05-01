@@ -1,13 +1,29 @@
+r"""
+Module of trace monoid related structures.
+
+EXAMPLES::
+
+The following example demonstrates a monoid creation ::
+    sage: M.<a,b,c> = TraceMonoid(I=(('a','c'), ('c','a'))); M
+    Trace monoid on 3 generators (a, b, c) over independence relation {(c, a), (a, c)}.
+
+Different monoid elements can be equal because of partially commutative multiplication ::
+    sage: M.<a,b,c> = TraceMonoid(I=(('a','c'), ('c','a')))
+    sage: c*a*b == a*c*b
+    True
+
+AUTHORS:
+
+- Pavlo Tokariev (2019-05-01): initial version
+
+"""
+
 # ***************************************************************************************************
-#  Copyright (C) 2019      Pavlo Tokariev (Kharkiv National Universiy) <pavlo.tokariev at google mail service>
+#  Copyright (C) 2019      Pavlo Tokariev (Kharkiv National University) <pavlo.tokariev at google mail service>
 #
 #  Distributed under the terms of the GNU General Public License (GPL)
 #                  http://www.gnu.org/licenses/
 # ***************************************************************************************************
-
-"""
-Trace monoids
-"""
 
 from __future__ import print_function
 
