@@ -34,6 +34,7 @@ from sage.misc.cachefunc import cached_method
 
 from sage.graphs.digraph import DiGraph
 from sage.graphs.graph import Graph
+from sage.misc.latex import latex
 from sage.monoids.free_monoid import FreeMonoid
 from sage.monoids.free_monoid_element import FreeMonoidElement
 from sage.rings.integer import Integer
@@ -49,8 +50,7 @@ class TraceMonoidElement(FreeMonoidElement):
         independence = self.parent().independence
         generators_set = sorted(e[0] for e in self._element_list)
         stacks = OrderedDict(sorted((g, []) for g in generators_set))
-        for element in reversed(self._element_list):
-            generator, amount = element
+        for generator, amount in reversed(self._element_list):
             stacks[generator].extend(repeat(True, amount))
             for other_gen in generators_set:
                 if other_gen == generator:
@@ -124,21 +124,11 @@ class TraceMonoidElement(FreeMonoidElement):
         steps = (monoid(list((v, 1) for v in step)) for step in steps)
         return FoataNormalForm(monoid, steps)
 
-    def _graph_labels(self, elements):
-        f = self.parent().monoid_generators()
-        labels = {}
-
-        for i, e in enumerate(elements):
-            e = f[e]
-            labels[i] = (i, e)
-
-        return labels
-
     def _plain_elements(self):
         return list(chain.from_iterable(repeat(e, times) for e, times in self._element_list))
 
     @cached_method
-    def dependency_graph(self, labeled=True):
+    def dependence_graph(self):
         elements = self._plain_elements()
         independence = self.parent().independence
         graph = {}
@@ -152,21 +142,18 @@ class TraceMonoidElement(FreeMonoidElement):
             for v1, v2 in edges:
                 graph[v1].append(v2)
 
-        g = DiGraph(graph)
-        if labeled:
-            g.relabel(self._graph_labels(elements))
-        return g
+        return DiGraph(graph)
 
     @cached_method
-    def hasse_diagram(self, alg="naive", labeled=True):
+    def hasse_diagram(self, alg="naive"):
         if alg == "naive":
-            return self._naive_hasse_diagram(labeled=labeled)
+            return self.naive_hasse_diagram()
         elif alg == "min":
-            return self._min_hasse_diagram(labeled=labeled)
+            return self.min_hasse_diagram()
         else:
-            raise ValueError("")
+            raise ValueError("`alg` option must be `naive` or `min`, got `{}`.".format(alg))
 
-    def _min_hasse_diagram(self, labeled=True):
+    def min_hasse_diagram(self):
         elements = self._plain_elements()
         elements.reverse()
         independence = self.parent().independence
@@ -193,16 +180,12 @@ class TraceMonoidElement(FreeMonoidElement):
 
             min.add(i)
 
-        if labeled:
-            elements.reverse()
-            graph.relabel(self._graph_labels(elements))
-        else:
-            l = len(elements)
-            graph.relabel(l - 1 - i for i in range(l))
+        length = len(elements)
+        graph.relabel(length - 1 - i for i in range(length))
         return graph
 
-    def _naive_hasse_diagram(self, labeled=True):
-        d = self.dependency_graph(labeled=labeled)
+    def naive_hasse_diagram(self):
+        d = self.dependence_graph()
         h = d.copy()
 
         for e1 in d.edges():
@@ -230,7 +213,7 @@ class FoataNormalForm(TraceMonoidElement):
         return "".join("({})".format(step) for step in self.steps)
 
     def _latex_(self):
-        return "".join("\\({}\\)".format(step) for step in self.steps)
+        return "".join("\\({}\\)".format(latex(step)) for step in self.steps)
 
 
 class TraceMonoid(FreeMonoid):
@@ -280,7 +263,9 @@ class TraceMonoid(FreeMonoid):
 
     @cached_method
     def independence_graph(self):
-        return Graph(self._named_set_without_duplicates())
+        g = Graph(self._named_set_without_duplicates())
+        g.add_vertices(self.gens())
+        return g
 
     @cached_method
     def dependence_polynomial(self, t=None):
@@ -289,10 +274,6 @@ class TraceMonoid(FreeMonoid):
             t = R.gen()
         clique_seq = self.independence_graph().clique_polynomial().coefficients()
         return Integer(1) / sum(((-1) ** i) * coeff * (t ** i) for i, coeff in enumerate(clique_seq))
-
-    @cached_method
-    def growth_series(self):
-        pass
 
     @cached_method
     def number_of_words(self, length):
@@ -313,9 +294,6 @@ class TraceMonoid(FreeMonoid):
             for suffix in range(self.ngens())
             if not ((word._element_list[-1][0], suffix) in self.independence and word._element_list[-1][0] > suffix)
         ]
-
-    def solve_equation(self, left, right):
-        pass
 
     def _repr_(self):
         f = self.monoid_generators()
