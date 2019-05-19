@@ -9,14 +9,18 @@ The following example demonstrates a monoid creation ::
     sage: M.<a,b,c> = TraceMonoid(I=(('a','c'), ('c','a'))); M
     Trace monoid on 3 generators (a, b, c) over independence relation {(c, a), (a, c)}.
 
+You can use restrictions syntax for trace monoid creation ::
+    sage: M.<a,b,c|ac=ca> = TraceMonoid(); M
+    Trace monoid on 3 generators (a, b, c) over independence relation {(c, a), (a, c)}.
+
 Different monoid elements can be equal because of partially commutative multiplication ::
-    sage: M.<a,b,c> = TraceMonoid(I=(('a','c'), ('c','a')))
+    sage: M.<a,b,c|ac=ca> = TraceMonoid()
     sage: c*a*b == a*c*b
     True
 
 AUTHORS:
 
-- Pavlo Tokariev (2019-05-01): initial version
+- Pavlo Tokariev (2019-05-30): initial version
 
 """
 
@@ -53,8 +57,7 @@ class TraceMonoidElement(FreeMonoidElement):
 
     EXAMPLES::
 
-        sage: I=Set((( 'a', 'd' ),( 'd', 'a' ),( 'b', 'c' ),( 'c', 'b' )))
-        sage: M.<a,b,c,d> = TraceMonoid(I=I)
+        sage: M.<a,b,c,d|ad=da,bc=cb> = TraceMonoid()
         sage: x = b*a*d*a*c*b
         sage: x**3
         b*a*d*a*c*b^2*a*d*a*c*b^2*a*d*a*c*b
@@ -162,8 +165,7 @@ class TraceMonoidElement(FreeMonoidElement):
 
                 Get the normal form ::
 
-                sage: I = Set((('a','d'),('d','a'),('b','c'),('c','b')))
-                sage: M.<a,b,c,d> = TraceMonoid(I=I); M
+                sage: M.<a,b,c,d|ad=da,bc=cb> = TraceMonoid(I=I); M
                 Trace monoid on 4 generators (a, b, c, d) over independence relation {(a, d), (b, c), (c, b), (d, a)}
                 sage: x = b*a*d*a*c*b
                 sage: x.foata_norm_form()
@@ -323,8 +325,7 @@ class FoataNormalForm(TraceMonoidElement):
 
     EXAMPLES::
 
-        sage: I=Set((( 'a', 'd' ),( 'd', 'a' ),( 'b', 'c' ),( 'c', 'b' )))
-        sage: M.<a,b,c,d> = TraceMonoid(I=I)
+        sage: M.<a,b,c,d|ad=da,bc=cb> = TraceMonoid(I=I)
         sage: x = b*a*d*a*c*b
         sage: nf = x.foata_norm_form(); nf
         (b)(a*d)(a)(b*c)
@@ -346,7 +347,10 @@ class FoataNormalForm(TraceMonoidElement):
         return "".join("({})".format(step) for step in self.steps)
 
     def _latex_(self):
-        return "".join("\\({}\\)".format(latex(step)) for step in self.steps)
+        return "".join("({})".format(latex(step)) for step in self.steps)
+
+    def _mul_(self, y):
+        return TraceMonoidElement.__mul__(self, y).foata_norm_form()
 
 
 class TraceMonoid(FreeMonoid):
@@ -388,9 +392,12 @@ class TraceMonoid(FreeMonoid):
         sage: latex(M)
         <a, b, c | ac=ca>
 
+        sage: M.<a,b,c|ac=ca> = TraceMonoid(); M
+        Trace monoid on 3 generators (a, b, c) over independence relation {(c, a), (a, c)}
+
     TESTS::
 
-        sage: M.<a,b,c> = TraceMonoid(I=(('a','c'), ('c','a')))
+        sage: M.<a,b,c|ac=ca> = TraceMonoid()
         sage: M.number_of_words(3) == len(M.words(3))
         True
     """
@@ -417,7 +424,7 @@ class TraceMonoid(FreeMonoid):
         if I is None:
             I = Set()
         elif n and len(I) > 0:
-            el = next(iter(I[0]))[0]
+            el = next(iter(I))[0]
             if isinstance(el, str):
                 f = self.monoid_generators()
                 reversed_family = {str(f[k]): k for k in f.keys()}
@@ -442,7 +449,7 @@ class TraceMonoid(FreeMonoid):
 
             Print the relation ::
 
-                sage: M.<a,b,c> = TraceMonoid(I=(('a','c'), ('c','a'))); M
+                sage: M.<a,b,c|ac=ca> = TraceMonoid(); M
                 sage: M.independence
                 {(a, c), (c, a)}
 
@@ -459,7 +466,7 @@ class TraceMonoid(FreeMonoid):
 
             TESTS::
 
-                sage: M.<a,b,c> = TraceMonoid(I=(('a','c'), ('c','a')))
+                sage: M.<a,b,c|ac=ca> = TraceMonoid()
                 sage: M._named_set_without_duplicates()
                 [(a, c)]
             """
@@ -491,7 +498,7 @@ class TraceMonoid(FreeMonoid):
 
             Print the relation ::
 
-                sage: M.<a,b,c> = TraceMonoid(I=(('a','c'), ('c','a'))); M
+                sage: M.<a,b,c|ac=ca> = TraceMonoid(); M
                 sage: M.dependence
                 {(c, c), (b, b), (b, a), (a, b), (c, b), (b, c), (a, a)}
 
@@ -526,11 +533,11 @@ class TraceMonoid(FreeMonoid):
     @cached_method
     def dependence_polynomial(self, t=None):
         r"""
-            Return dependence polynomial of dependence graph.
+            Return dependence polynomial.
 
             The polynomial is defined as follows: `\sum{i}{(-1)^i c_i t^i}`,
             where `c_i` equals to number of full subgraphs
-            of size `i` in the dependence graph.
+            of size `i` in the independence graph.
 
             OUTPUT: polynomial over integer ring
 
@@ -538,8 +545,7 @@ class TraceMonoid(FreeMonoid):
 
             Get the polynomial ::
 
-                sage: I = Set((('a', 'd'),('d', 'a'),('b', 'c'),('c', 'b')))
-                sage: M.<a,b,c,d> = TraceMonoid(I=I); M
+                sage: M.<a,b,c,d|ad=da,bc=cb> = TraceMonoid(); M
                 Trace monoid on 4 generators (a, b, c, d) over independence relation {(a, d), (b, c), (c, b), (d, a)}
                 sage: M.dependence_polynomial()
                 1/(2*t^2 - 4*t + 1)
@@ -566,8 +572,7 @@ class TraceMonoid(FreeMonoid):
 
             Get number of words of size 3 ::
 
-                sage: I = Set((('a', 'd'),('d', 'a'),('b', 'c'),('c', 'b')))
-                sage: M.<a,b,c,d> = TraceMonoid(I=I); M
+                sage: M.<a,b,c,d|ad=da,bc=cb> = TraceMonoid(); M
                 Trace monoid on 4 generators (a, b, c, d) over independence relation {(a, d), (b, c), (c, b), (d, a)}
                 sage: M.number_of_words(3)
                 21
@@ -591,8 +596,7 @@ class TraceMonoid(FreeMonoid):
 
             Get number of words of size 3 ::
 
-                sage: I = Set((('a', 'd'),('d', 'a'),('b', 'c'),('c', 'b')))
-                sage: M.<a,b,c,d> = TraceMonoid(I=I)
+                sage: M.<a,b,c,d|ad=da,bc=cb> = TraceMonoid(); M
                 sage: len(M.words(3))
                 21
             """
@@ -616,7 +620,7 @@ class TraceMonoid(FreeMonoid):
             .format(self.ngens(), self.gens(), self.independence)
 
     def _latex_(self):
-        return "<{} | {}>".format(
+        return "\\langle {} \\mid {} \\rangle".format(
             repr(self.gens())[1:-1],
             ",".join(
                 "{0}{1}={1}{0}".format(v1, v2)
