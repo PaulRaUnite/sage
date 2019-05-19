@@ -1004,6 +1004,10 @@ def preparse_generators(code):
 
       - Rewrite using regular expressions
 
+    - 2019-05-19: Pavlo Tokariev
+
+      - Added trace monoid restrictions to generators preparser
+
     TESTS::
 
         sage: from sage.repl.preparse import preparse, preparse_generators
@@ -1074,9 +1078,10 @@ def preparse_generators(code):
     """
     new_code = []
     last_end = 0
-    #                                  obj       .< gens >      ,  other   =   constructor
-    for m in re.finditer(r";(\s*)([a-zA-Z_]\w*)\.<([^>]+)> *((?:,[\w, ]+)?)= *([^;#]+)", code):
-        ident, obj, gens, other_objs, constructor = m.groups()
+    #                                  obj       .< gens    | restrictions   >  ,  other    =   constructor
+    for m in re.finditer(r";(\s*)([a-zA-Z_]\w*)\.<([^>]+?)(\|(?:\w\w=\w\w)(?:,\w\w=\w\w)*)?> *((?:,[\w, "
+                         r"]+)?)= *([^;#]+)", code):
+        ident, obj, gens, raw_restrictions, other_objs, constructor = m.groups()
         gens = [v.strip() for v in gens.split(',')]
         constructor = constructor.rstrip()
         if len(constructor) == 0:
@@ -1088,7 +1093,21 @@ def preparse_generators(code):
             # Only use comma if there are already arguments to the constructor
             comma = ', ' if constructor[opening+1:-1].strip() != '' else ''
             names = "('%s',)" % "', '".join(gens)
-            constructor = constructor[:-1] + comma + "names=%s)" % names
+
+            restrict_list = []
+            if raw_restrictions:
+                for c in raw_restrictions[1:].split(",") or ():
+                    left, _, right = c.partition("=")
+                    if left != right[::-1]:
+                        raise SyntaxError("Bad condition syntax.%s=%s"% (left, right))
+                    restrict_list.append((str(left[0]), str(left[1])))
+                    restrict_list.append((str(left[1]), str(left[0])))
+
+            constructor = constructor[:-1] + comma + "names=%s" % names
+            if restrict_list:
+                constructor += ", I=frozenset(%s))" % restrict_list
+            else:
+                constructor += ")"
         elif constructor[-1] == ']':
             # Could be nested.
             if '[' not in constructor:
