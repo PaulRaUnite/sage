@@ -6,14 +6,17 @@ Contains TraceMonoid, TraceMonoidElement and FoataForm classes.
 EXAMPLES::
 
 The following example demonstrates a monoid creation ::
+    sage: from sage.monoids.trace_monoid import TraceMonoid
     sage: M.<a,b,c> = TraceMonoid(I=(('a','c'), ('c','a'))); M
-    Trace monoid on 3 generators (a, b, c) over independence relation {(c, a), (a, c)}.
+    Trace monoid on 3 generators (a, b, c) over independence relation {(c, a), (a, c)}
 
 You can use restrictions syntax for trace monoid creation ::
+    sage: from sage.monoids.trace_monoid import TraceMonoid
     sage: M.<a,b,c|ac=ca> = TraceMonoid(); M
-    Trace monoid on 3 generators (a, b, c) over independence relation {(c, a), (a, c)}.
+    Trace monoid on 3 generators (a, b, c) over independence relation {(c, a), (a, c)}
 
 Different monoid elements can be equal because of partially commutative multiplication ::
+    sage: from sage.monoids.trace_monoid import TraceMonoid
     sage: M.<a,b,c|ac=ca> = TraceMonoid()
     sage: c*a*b == a*c*b
     True
@@ -33,6 +36,7 @@ AUTHORS:
 
 from __future__ import print_function
 
+import operator
 from collections import OrderedDict
 from itertools import repeat, chain, product, combinations_with_replacement
 
@@ -56,7 +60,7 @@ class TraceMonoidElement(FreeMonoidElement):
     Element of a trace monoid.
 
     EXAMPLES::
-
+        sage: from sage.monoids.trace_monoid import TraceMonoid
         sage: M.<a,b,c,d|ad=da,bc=cb> = TraceMonoid()
         sage: x = b*a*d*a*c*b
         sage: x**3
@@ -115,6 +119,7 @@ class TraceMonoidElement(FreeMonoidElement):
 
                 Get the normal form ::
 
+                sage: from sage.monoids.trace_monoid import TraceMonoid
                 sage: M.<a,b,c> = TraceMonoid(I=(('a','c'), ('c','a')))
                 sage: (c*a*c*b*a^2).lexic_norm_form()
                 a*c^2*b*a^2
@@ -165,7 +170,8 @@ class TraceMonoidElement(FreeMonoidElement):
 
                 Get the normal form ::
 
-                sage: M.<a,b,c,d|ad=da,bc=cb> = TraceMonoid(I=I); M
+                sage: from sage.monoids.trace_monoid import TraceMonoid
+                sage: M.<a,b,c,d|ad=da,bc=cb> = TraceMonoid(); M
                 Trace monoid on 4 generators (a, b, c, d) over independence relation {(a, d), (b, c), (c, b), (d, a)}
                 sage: x = b*a*d*a*c*b
                 sage: x.foata_norm_form()
@@ -315,8 +321,58 @@ class TraceMonoidElement(FreeMonoidElement):
         return h
 
     def _richcmp_(self, other, op):
+        r"""
+        Compare two traces by their lexicographic normal forms.
+
+        ALGORITHM:
+
+        Transform each trace to lexicographic form and then compare them.
+        Equality means that they have the same "meaning"
+        in terms of trace theory
+
+        OUTPUT: 0 if self==other, -1 if self<other, 1 if self>other
+        """
         other = other.lexic_norm_form()
         return super(TraceMonoidElement, self.lexic_norm_form())._richcmp_(other, op)
+
+    def alphabet(self):
+        r"""
+        Return alphabet of a trace.
+
+        EXAMPLES::
+
+            sage: from sage.monoids.trace_monoid import TraceMonoid
+            sage: M.<a,b,c,d|ad=da,bc=cb> = TraceMonoid()
+            sage: x = b*a*d*a*c*b
+            sage: x.alphabet()
+            {b, a, d, c}
+
+        OUTPUT: set of generators
+        """
+        return Set(self.to_list())
+
+    def projection(self, letters):
+        r"""
+        Return a trace that formed from `self` using filtering by `letters`
+
+        INPUT:
+
+        - ``letters`` -- set of generators; defines set of letters that will be
+            used to filter the trace.
+
+        EXAMPLES::
+
+            sage: from sage.monoids.trace_monoid import TraceMonoid
+            sage: M.<a,b,c,d|ad=da,bc=cb> = TraceMonoid()
+            sage: x = b*a*d*a*c*b
+            sage: x.projection({a,b})
+            b*a^2*b
+            sage: x.projection({b,d,c})
+            b*d*c*b
+
+        OUTPUT: a trace
+        """
+        return reduce(operator.mul, [x for x in self.to_list() if x in letters])
 
 
 class FoataNormalForm(TraceMonoidElement):
@@ -325,7 +381,8 @@ class FoataNormalForm(TraceMonoidElement):
 
     EXAMPLES::
 
-        sage: M.<a,b,c,d|ad=da,bc=cb> = TraceMonoid(I=I)
+        sage: from sage.monoids.trace_monoid import TraceMonoid
+        sage: M.<a,b,c,d|ad=da,bc=cb> = TraceMonoid()
         sage: x = b*a*d*a*c*b
         sage: nf = x.foata_norm_form(); nf
         (b)(a*d)(a)(b*c)
@@ -378,7 +435,8 @@ class TraceMonoid(FreeMonoid):
 
     EXAMPLES::
 
-        sage: F = TraceMonoid(names=['a', 'b', 'c'], I={('a','c'), ('c','a')}); F
+        sage: from sage.monoids.trace_monoid import TraceMonoid
+        sage: F = TraceMonoid(names=('a', 'b', 'c'), I=Set({('a','c'), ('c','a')})); F
         Trace monoid on 3 generators (a, b, c) over independence relation {(c, a), (a, c)}
         sage: x = F.gens()
         sage: x[0]*x[1]**5 * (x[0]*x[2])
@@ -387,16 +445,19 @@ class TraceMonoid(FreeMonoid):
         sage: F
         Trace monoid on 3 generators (a0, a1, a2) over independence relation {}
 
+        sage: from sage.monoids.trace_monoid import TraceMonoid
         sage: M.<a,b,c> = TraceMonoid(I=(('a','c'), ('c','a'))); M
         Trace monoid on 3 generators (a, b, c) over independence relation {(c, a), (a, c)}
         sage: latex(M)
-        <a, b, c | ac=ca>
+        \langle a, b, c \mid ac=ca \rangle
 
+        sage: from sage.monoids.trace_monoid import TraceMonoid
         sage: M.<a,b,c|ac=ca> = TraceMonoid(); M
         Trace monoid on 3 generators (a, b, c) over independence relation {(c, a), (a, c)}
 
     TESTS::
 
+        sage: from sage.monoids.trace_monoid import TraceMonoid
         sage: M.<a,b,c|ac=ca> = TraceMonoid()
         sage: M.number_of_words(3) == len(M.words(3))
         True
@@ -449,9 +510,10 @@ class TraceMonoid(FreeMonoid):
 
             Print the relation ::
 
-                sage: M.<a,b,c|ac=ca> = TraceMonoid(); M
-                sage: M.independence
-                {(a, c), (c, a)}
+                sage: from sage.monoids.trace_monoid import TraceMonoid
+                sage: M.<a,b,c|ac=ca> = TraceMonoid()
+                sage: sorted(M.independence)
+                [(a, c), (c, a)]
 
             """
         f = self.monoid_generators()
@@ -466,6 +528,7 @@ class TraceMonoid(FreeMonoid):
 
             TESTS::
 
+                sage: from sage.monoids.trace_monoid import TraceMonoid
                 sage: M.<a,b,c|ac=ca> = TraceMonoid()
                 sage: M._named_set_without_duplicates()
                 [(a, c)]
@@ -498,7 +561,8 @@ class TraceMonoid(FreeMonoid):
 
             Print the relation ::
 
-                sage: M.<a,b,c|ac=ca> = TraceMonoid(); M
+                sage: from sage.monoids.trace_monoid import TraceMonoid
+                sage: M.<a,b,c|ac=ca> = TraceMonoid()
                 sage: M.dependence
                 {(c, c), (b, b), (b, a), (a, b), (c, b), (b, c), (a, a)}
 
@@ -545,6 +609,7 @@ class TraceMonoid(FreeMonoid):
 
             Get the polynomial ::
 
+                sage: from sage.monoids.trace_monoid import TraceMonoid
                 sage: M.<a,b,c,d|ad=da,bc=cb> = TraceMonoid(); M
                 Trace monoid on 4 generators (a, b, c, d) over independence relation {(a, d), (b, c), (c, b), (d, a)}
                 sage: M.dependence_polynomial()
@@ -572,10 +637,11 @@ class TraceMonoid(FreeMonoid):
 
             Get number of words of size 3 ::
 
+                sage: from sage.monoids.trace_monoid import TraceMonoid
                 sage: M.<a,b,c,d|ad=da,bc=cb> = TraceMonoid(); M
                 Trace monoid on 4 generators (a, b, c, d) over independence relation {(a, d), (b, c), (c, b), (d, a)}
                 sage: M.number_of_words(3)
-                21
+                48
             """
         psr = PowerSeriesRing(ZZ, default_prec=length + 1)
         return psr(self.dependence_polynomial()).coefficients()[length]
@@ -596,9 +662,10 @@ class TraceMonoid(FreeMonoid):
 
             Get number of words of size 3 ::
 
-                sage: M.<a,b,c,d|ad=da,bc=cb> = TraceMonoid(); M
+                sage: from sage.monoids.trace_monoid import TraceMonoid
+                sage: M.<a,b,c,d|ad=da,bc=cb> = TraceMonoid()
                 sage: len(M.words(3))
-                21
+                48
             """
         if length < 0:
             raise ValueError("Bad length of words. Expected zero or positive number.")
