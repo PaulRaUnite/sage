@@ -1004,7 +1004,7 @@ def preparse_generators(code):
 
       - Rewrite using regular expressions
 
-    - 2019-05-19: Pavlo Tokariev
+    - 2019-05-26: Pavlo Tokariev
 
       - Added trace monoid restrictions to generators preparser
 

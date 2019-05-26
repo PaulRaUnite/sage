@@ -21,9 +21,14 @@ Different monoid elements can be equal because of partially commutative multipli
     sage: c*a*b == a*c*b
     True
 
-AUTHORS:
+Lets ensure that it is a monoid ::
+    sage: from sage.monoids.trace_monoid import TraceMonoid
+    sage: TraceMonoid() in Monoids()
+    True
 
-- Pavlo Tokariev (2019-05-30): initial version
+AUTHORS::
+
+- Pavlo Tokariev (2019-05-26): initial version
 
 """
 
@@ -330,7 +335,7 @@ class TraceMonoidElement(FreeMonoidElement):
         Equality means that they have the same "meaning"
         in terms of trace theory
 
-        OUTPUT: 0 if self==other, -1 if self<other, 1 if self>other
+        OUTPUT: 0 if self == other, -1 if self < other, 1 if self > other
         """
         other = other.lexic_norm_form()
         return super(TraceMonoidElement, self.lexic_norm_form())._richcmp_(other, op)
@@ -407,7 +412,7 @@ class FoataNormalForm(TraceMonoidElement):
         return "".join("({})".format(latex(step)) for step in self.steps)
 
     def _mul_(self, y):
-        return TraceMonoidElement.__mul__(self, y).foata_norm_form()
+        return TraceMonoidElement._mul_(self, y).foata_norm_form()
 
 
 class TraceMonoid(FreeMonoid):
@@ -599,7 +604,7 @@ class TraceMonoid(FreeMonoid):
         r"""
             Return dependence polynomial.
 
-            The polynomial is defined as follows: `\sum{i}{(-1)^i c_i t^i}`,
+            The polynomial is defined as follows: `\\sum{i}{(-1)^i c_i t^i}`,
             where `c_i` equals to number of full subgraphs
             of size `i` in the independence graph.
 

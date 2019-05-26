@@ -196,7 +196,7 @@ class FreeMonoid(Monoid_class, UniqueRepresentation):
             raise ValueError("n (=%s) must be nonnegative."%n)
         self.__ngens = int(n)
         #self._assign_names(names)
-        Monoid_class.__init__(self, names)
+        Monoid_class.__init__(self,names)
 
     def _repr_(self):
         return "Free monoid on %s generators %s"%(self.__ngens,self.gens())
